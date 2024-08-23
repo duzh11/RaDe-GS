@@ -1,6 +1,6 @@
 open3d
 trimesh
 scikit-image
-opencv-python
+opencv-python-headless<4.3
 plyfile
 tqdm
