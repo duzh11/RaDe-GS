@@ -21,6 +21,8 @@ from argparse import ArgumentParser
 from arguments import ModelParams, PipelineParams, get_combined_args
 from gaussian_renderer import GaussianModel
 
+import utils.vis_utils as VISUils
+
 def render_set(model_path, name, iteration, views, gaussians, pipeline, background, kernel_size):
     render_path = os.path.join(model_path, name, "ours_{}".format(iteration), "renders")
     gts_path = os.path.join(model_path, name, "ours_{}".format(iteration), "gt")
@@ -28,11 +30,37 @@ def render_set(model_path, name, iteration, views, gaussians, pipeline, backgrou
     makedirs(render_path, exist_ok=True)
     makedirs(gts_path, exist_ok=True)
 
+    ### Optional: save depth/normal maps
+    # render, mask, expected_coord, median_coord, expected_depth, median_depth, 
+    # viewspace_points, viewspace_points, radii, normal
+    render_outputs = ['mask', 'expected_depth', 'median_depth', 'normal']
+    outputs_path = []
+    for output_idx in render_outputs:
+        output_idx_path = os.path.join(model_path, name, "ours_{}".format(iteration), f'renders_{output_idx}')
+        makedirs(output_idx_path, exist_ok=True)
+        outputs_path.append(output_idx_path)
+
     for idx, view in enumerate(tqdm(views, desc="Rendering progress")):
-        rendering = render(view, gaussians, pipeline, background, kernel_size=kernel_size)["render"]
+        render_dict = render(view, gaussians, pipeline, background, kernel_size=kernel_size)
+        rendering = render_dict["render"]
         gt = view.original_image[0:3, :, :]
         torchvision.utils.save_image(rendering, os.path.join(render_path, '{0:05d}'.format(idx) + ".png"))
         torchvision.utils.save_image(gt, os.path.join(gts_path, '{0:05d}'.format(idx) + ".png"))
+
+        ### Optional: save depth/normal maps
+        for jdx, output_jdx in enumerate(render_outputs):
+            render_output = render_dict[output_jdx]
+            
+            if 'mask' in output_jdx:
+                torchvision.utils.save_image(render_output, os.path.join(outputs_path[jdx], '{0:05d}'.format(idx) + ".png"))
+            elif 'depth' in output_jdx:
+                render_output_map = VISUils.apply_depth_colormap(render_output[0,...,None], render_dict['mask'][0,...,None]).detach()
+                torchvision.utils.save_image(render_output_map.permute(2,0,1), os.path.join(outputs_path[jdx], '{0:05d}'.format(idx) + ".png"))
+            elif 'normal' in output_jdx:
+                render_output_map = ((render_output+1)/2).clip(0, 1)
+                torchvision.utils.save_image(render_output_map, os.path.join(outputs_path[jdx], '{0:05d}'.format(idx) + ".png"))
+            else:
+                pass
 
 def render_sets(dataset : ModelParams, iteration : int, pipeline : PipelineParams, skip_train : bool, skip_test : bool):
     with torch.no_grad():
