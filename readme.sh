@@ -25,10 +25,18 @@ pip install -e .
 # ======================================== # 
 
 # +++++++++ DTU +++++++++ # 
-python train.py -s ../../Data/DTU/scan24 -m ../exps/DTU/scan24 -r 2 --use_decoupled_appearance
-python mesh_extract.py -s ../../Data/DTU/scan24 -m ../exps/DTU/scan24 -r 2
-python evaluate_dtu_mesh.py -s ../../Data/DTU/scan24 -m ../exps/DTU/scan24
+python train.py -s ../../Data/DTU/scan24 -m ../exps/full/DTU/scan24 -r 2 --use_decoupled_appearance
+python mesh_extract.py -s ../../Data/DTU/scan24 -m ../exps/full/DTU/scan24 -r 2
+python evaluate_dtu_mesh.py -s ../../Data/DTU/scan24 -m ../exps/full/DTU/scan24
+
+python render.py -s ../../Data/DTU/scan24 -m ../exps/full/DTU/scan24 
+python metric.py -m ../exps/full/DTU/scan24 -f train
 
 # +++++++++ TNT +++++++++ # 
-python train.py -s ../../Data/TNT/Barn -m ../exps/TNT/Barn -r 2 --eval --use_decoupled_appearance
-python mesh_extract_tetrahedra.py -s ../../Data/TNT/Barn -m ../exps/TNT/Barn -r 2 --eval
+python train.py -s ../../Data/TNT/Barn -m ../exps/full/TNT/Barn -r 2 --eval --use_decoupled_appearance
+python mesh_extract_tetrahedra.py -s ../../Data/TNT/Barn -m ../exps/full/TNT/Barn -r 2 --eval
+# python eval_tnt/run.py --dataset-dir <path to GT TNT dataset> --traj-path <path to preprocessed TNT COLMAP_SfM.log file> --ply-path <output folder>/recon.ply
+
+python render.py -s ../../Data/TNT/Barn -m ../exps/full/TNT/Barn -r 2 --eval
+python metric.py -m ../exps/full/TNT/Barn  -f train
+python metric.py -m ../exps/full/TNT/Barn  -f test
