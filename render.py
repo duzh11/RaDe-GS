@@ -57,6 +57,9 @@ def render_set(model_path, name, iteration, views, gaussians, pipeline, backgrou
                 render_output_map = VISUils.apply_depth_colormap(render_output[0,...,None], render_dict['mask'][0,...,None]).detach()
                 torchvision.utils.save_image(render_output_map.permute(2,0,1), os.path.join(outputs_path[jdx], '{0:05d}'.format(idx) + ".png"))
             elif 'normal' in output_jdx:
+                # transform normal from view space to world space
+                render_output = (render_output.permute(1,2,0) @ (view.world_view_transform[:3,:3].T)).permute(2,0,1)
+
                 render_output_map = ((render_output+1)/2).clip(0, 1)
                 torchvision.utils.save_image(render_output_map, os.path.join(outputs_path[jdx], '{0:05d}'.format(idx) + ".png"))
             else:

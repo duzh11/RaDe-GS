@@ -34,7 +34,7 @@ pip install -e .
 # +++++++++ DTU +++++++++ # 
 python train.py -s ../../Data/DTU/scan24 -m ../exps/full/DTU/scan24 -r 2 --use_decoupled_appearance
 python mesh_extract.py -s ../../Data/DTU/scan24 -m ../exps/full/DTU/scan24 -r 2
-python evaluate_dtu_mesh.py -s ../../Data/DTU/scan24 -m ../exps/full/DTU/scan24
+python evaluate_dtu_mesh.py --DTU ../../Data/Offical_DTU_Dataset -s ../../Data/DTU/scan24 -m ../exps/full/DTU/scan24
 
 python render.py -s ../../Data/DTU/scan24 -m ../exps/full/DTU/scan24 
 python metric.py -m ../exps/full/DTU/scan24 -f train
