@@ -42,11 +42,11 @@ python metric.py -m ../exps/full/DTU/scan24 -f train
 # +++++++++ TNT +++++++++ # 
 python train.py -s ../../Data/TNT/Barn -m ../exps/full/TNT/Barn -r 2 --eval --use_decoupled_appearance
 python mesh_extract_tetrahedra.py -s ../../Data/TNT/Barn -m ../exps/full/TNT/Barn -r 2 --eval
-python eval_tnt/run.py --dataset-dir ../../Data/TNT_dataset/Barn --traj-path ../../Data/TNT_dataset/Barn/Barn_COLMAP_SfM.log --ply-path ../exps/full/TNT/Barn/recon_tetrahedra.ply
+python eval_tnt/run.py --dataset-dir ../../Data/Official_TNT_dataset/Barn --traj-path ../../Data/TNT/Barn/Barn_COLMAP_SfM.log --ply-path ../exps/full/TNT/Barn/recon_tetrahedra.ply
 
 python render.py -s ../../Data/TNT/Barn -m ../exps/full/TNT/Barn -r 2 --eval
 python metric.py -m ../exps/full/TNT/Barn -f train
 python metric.py -m ../exps/full/TNT/Barn -f test
 
 # ============ concat and vis ============ # 
-python vis_outputs.py -f 'train' -m ../exps/full/DTU/scan24 ../exps/full/DTU/scan37
+python vis_outputs.py -f train -m ../exps/full/DTU/scan24 ../exps/full/DTU/scan37
