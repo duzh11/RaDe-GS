@@ -321,7 +321,7 @@ def evaluate_mesh(dataset : ModelParams, iteration : int, DTU_PATH : str):
     os.system(cmd)
 
     origin_mesh_file = result_mesh_file.split('culled.ply')[0] + 'aligned.ply'
-    cmd = f"python dtu_eval/eval.py --data {result_mesh_file} --scan {scan} --mode mesh --dataset_dir {DTU_PATH} --vis_out_dir {out_dir} --suffix_name womask"
+    cmd = f"python dtu_eval/eval.py --data {origin_mesh_file} --scan {scan} --mode mesh --dataset_dir {DTU_PATH} --vis_out_dir {out_dir} --suffix_name womask"
     print(cmd)
     os.system(cmd) 
     
