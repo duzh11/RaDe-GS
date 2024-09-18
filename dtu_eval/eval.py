@@ -37,6 +37,7 @@ if __name__ == '__main__':
     parser.add_argument('--patch_size', type=float, default=60)
     parser.add_argument('--max_dist', type=float, default=20)
     parser.add_argument('--visualize_threshold', type=float, default=10)
+    parser.add_argument('--suffix_name', type=str, default=None)
     args = parser.parse_args()
 
     thresh = args.downsample_density
@@ -144,12 +145,19 @@ if __name__ == '__main__':
     data_alpha = dist_d2s.clip(max=vis_dist) / vis_dist
     data_color[ np.where(inbound)[0][grid_inbound][in_obs] ] = R * data_alpha + W * (1-data_alpha)
     data_color[ np.where(inbound)[0][grid_inbound][in_obs][dist_d2s[:,0] >= max_dist] ] = G
-    write_vis_pcd(f'{args.vis_out_dir}/vis_{args.scan:03}_d2s.ply', data_down, data_color)
+    if args.suffix_name:
+        write_vis_pcd(f'{args.vis_out_dir}/vis_{args.scan:03}_d2s_{args.suffix_name}.ply', data_down, data_color)
+    else:
+        write_vis_pcd(f'{args.vis_out_dir}/vis_{args.scan:03}_d2s.ply', data_down, data_color)
+
     stl_color = np.tile(B, (stl.shape[0], 1))
     stl_alpha = dist_s2d.clip(max=vis_dist) / vis_dist
     stl_color[ np.where(above)[0] ] = R * stl_alpha + W * (1-stl_alpha)
     stl_color[ np.where(above)[0][dist_s2d[:,0] >= max_dist] ] = G
-    write_vis_pcd(f'{args.vis_out_dir}/vis_{args.scan:03}_s2d.ply', stl, stl_color)
+    if args.suffix_name:
+        write_vis_pcd(f'{args.vis_out_dir}/vis_{args.scan:03}_s2d_{args.suffix_name}.ply', stl, stl_color)
+    else:
+        write_vis_pcd(f'{args.vis_out_dir}/vis_{args.scan:03}_s2d.ply', stl, stl_color)
 
     pbar.update(1)
     pbar.set_description('done')
@@ -158,11 +166,13 @@ if __name__ == '__main__':
     print(mean_d2s, mean_s2d, over_all)
     
     import json
-    with open(f'{args.vis_out_dir}/results.json', 'w') as fp:
+    if args.suffix_name:
+        result_file = f'{args.vis_out_dir}/results_{args.suffix_name}.json'
+    else:
+        result_file = f'{args.vis_out_dir}/results.json'
+    with open(result_file, 'w') as fp:
         json.dump({
             'mean_d2s': mean_d2s,
             'mean_s2d': mean_s2d,
             'overall': over_all,
         }, fp, indent=True)
-
-

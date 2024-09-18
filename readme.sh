@@ -36,7 +36,7 @@ python train.py -s ../../Data/DTU/scan24 -m ../exps/full/DTU/scan24 -r 2 --use_d
 python mesh_extract.py -s ../../Data/DTU/scan24 -m ../exps/full/DTU/scan24 -r 2
 python evaluate_dtu_mesh.py --DTU ../../Data/Offical_DTU_Dataset -s ../../Data/DTU/scan24 -m ../exps/full/DTU/scan24
 
-python render.py -s ../../Data/DTU/scan24 -m ../exps/full/DTU/scan24 
+python render.py -s ../../Data/DTU/scan24 -m ../exps/full/DTU/scan24 -r 2
 python metric.py -m ../exps/full/DTU/scan24 -f train
 
 # +++++++++ TNT +++++++++ # 

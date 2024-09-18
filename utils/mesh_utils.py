@@ -63,7 +63,7 @@ def to_cam_open3d(viewpoint_stack):
 
 
 class GaussianExtractor(object):
-    def __init__(self, gaussians, render, pipe, bg_color=None):
+    def __init__(self, gaussians, render, pipe, bg_color=None, kernel_size=0):
         """
         a class that extracts attributes a scene presented by 2DGS
 
@@ -76,7 +76,7 @@ class GaussianExtractor(object):
             bg_color = [0, 0, 0]
         background = torch.tensor(bg_color, dtype=torch.float32, device="cuda")
         self.gaussians = gaussians
-        self.render = partial(render, pipe=pipe, bg_color=background)
+        self.render = partial(render, pipe=pipe, bg_color=background, kernel_size=kernel_size)
         self.clean()
 
     @torch.no_grad()
@@ -100,7 +100,7 @@ class GaussianExtractor(object):
             rgb = render_pkg['render']
             alpha = render_pkg['mask']
             normal = torch.nn.functional.normalize(render_pkg['normal'], dim=0)
-            depth = render_pkg['middepth']
+            depth = render_pkg['median_depth']
             depth_normal, _ = depth_to_normal(viewpoint_cam, depth)
             depth_normal = depth_normal.permute(2,0,1)
             # depth_normal = render_pkg['surf_normal']
@@ -138,17 +138,21 @@ class GaussianExtractor(object):
             color_type=o3d.pipelines.integration.TSDFVolumeColorType.RGB8
         )
 
+        alpha_thres = 0.5
         for i, cam_o3d in tqdm(enumerate(to_cam_open3d(self.viewpoint_stack)), desc="TSDF integration progress"):
             rgb = self.rgbmaps[i]
             depth = self.depthmaps[i]
-            
+
+            # todo: TSDF fusion without masks
             # if we have mask provided, use it
-            if mask_backgrond and (self.viewpoint_stack[i].gt_alpha_mask is not None):
-                depth[(self.viewpoint_stack[i].gt_alpha_mask < 0.5)] = 0
+            # if mask_backgrond and (self.viewpoint_stack[i].gt_alpha_mask is not None):
+            #     depth[(self.viewpoint_stack[i].gt_alpha_mask < 0.5)] = 0
+
+            depth[self.alphamaps[i] < alpha_thres] = 0
 
             # make open3d rgbd
             rgbd = o3d.geometry.RGBDImage.create_from_color_and_depth(
-                o3d.geometry.Image(np.asarray(rgb.permute(1,2,0).cpu().numpy() * 255, order="C", dtype=np.uint8)),
+                o3d.geometry.Image(np.asarray(np.clip(rgb.permute(1,2,0).cpu().numpy(), 0.0, 1.0) * 255, order="C", dtype=np.uint8)),
                 o3d.geometry.Image(np.asarray(depth.permute(1,2,0).cpu().numpy(), order="C")),
                 depth_trunc = depth_trunc, convert_rgb_to_intensity=False,
                 depth_scale = 1.0

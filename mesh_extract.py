@@ -14,6 +14,7 @@ import open3d as o3d
 import open3d.core as o3c
 from scene.dataset_readers import sceneLoadTypeCallbacks
 from utils.camera_utils import cameraList_from_camInfos, camera_to_JSON
+from utils.mesh_utils import GaussianExtractor, to_cam_open3d, post_process_mesh
 import json
 
 
@@ -26,9 +27,55 @@ def load_camera(args):
     return cameraList_from_camInfos(scene_info.train_cameras, 1.0, args)
 
 
+def extract_mesh_2dgs(dataset, pipe, checkpoint_iterations=None):
+    '''
+        code of extracting mesh from 2D-GS
+    '''
+    gaussians = GaussianModel(dataset.sh_degree)
+    
+    # laod iteration
+    output_path = os.path.join(dataset.model_path,"point_cloud")
+    iteration = 0
+    if checkpoint_iterations is None:
+        for folder_name in os.listdir(output_path):
+            iteration= max(iteration,int(folder_name.split('_')[1]))
+    else:
+        iteration = checkpoint_iterations
+    output_path = os.path.join(output_path,"iteration_"+str(iteration),"point_cloud.ply")
+
+    gaussians.load_ply(output_path)
+    print(f'Loaded gaussians from {output_path}')
+    
+    kernel_size = dataset.kernel_size
+    bg_color = [1, 1, 1]
+    background = torch.tensor(bg_color, dtype=torch.float32, device="cuda")
+
+    scene = Scene(dataset, gaussians, load_iteration=iteration, shuffle=False)
+
+    # extract mesh
+    gaussExtractor = GaussianExtractor(gaussians, render, pipe, bg_color=bg_color, kernel_size=kernel_size)   
+    gaussExtractor.gaussians.active_sh_degree = 0
+    gaussExtractor.reconstruction(scene.getTrainCameras())
+
+    # TSDF fusion of bounded scenes
+    name = 'recon_womask.ply'
+    depth_trunc = 3.0
+    voxel_size = 0.002
+    sdf_trunc = 0.016
+    mesh = gaussExtractor.extract_mesh_bounded(voxel_size=voxel_size, sdf_trunc=sdf_trunc, depth_trunc=depth_trunc)
+
+    o3d.io.write_triangle_mesh(os.path.join(args.model_path, name), mesh)
+    print("mesh saved at {}".format(os.path.join(args.model_path, name)))
+    # post-process the mesh and save, saving the largest N clusters
+    mesh_post = post_process_mesh(mesh, cluster_to_keep=1)
+    o3d.io.write_triangle_mesh(os.path.join(args.model_path, name.replace('.ply', '_post.ply')), mesh_post)
+    print("mesh post processed saved at {}".format(os.path.join(args.model_path, name.replace('.ply', '_post.ply'))))
 
 
-def extract_mesh(dataset, pipe, checkpoint_iterations=None):
+def extract_mesh_radegs(dataset, pipe, checkpoint_iterations=None):
+    '''
+        original code of extracting mesh from Rade-GS
+    '''
     gaussians = GaussianModel(dataset.sh_degree)
     output_path = os.path.join(dataset.model_path,"point_cloud")
     iteration = 0
@@ -57,8 +104,10 @@ def extract_mesh(dataset, pipe, checkpoint_iterations=None):
         rendered_img = torch.clamp(render_pkg["render"], min=0, max=1.0).cpu().numpy().transpose(1,2,0)
         color_list.append(np.ascontiguousarray(rendered_img))
         depth = render_pkg["median_depth"].clone()
-        if viewpoint_cam.gt_mask is not None:
-            depth[(viewpoint_cam.gt_mask < 0.5)] = 0
+        
+        # todo: TSDF fusion without masks
+        # if viewpoint_cam.gt_mask is not None:
+        #     depth[(viewpoint_cam.gt_mask < 0.5)] = 0
         depth[render_pkg["mask"]<alpha_thres] = 0
         depth_list.append(depth[0].cpu().numpy())
 
@@ -102,7 +151,8 @@ def extract_mesh(dataset, pipe, checkpoint_iterations=None):
 
     mesh = vbg.extract_triangle_mesh()
     mesh.compute_vertex_normals()
-    o3d.io.write_triangle_mesh(os.path.join(dataset.model_path,"recon.ply"),mesh.to_legacy())
+    # todo: TSDF fusion without masks
+    o3d.io.write_triangle_mesh(os.path.join(dataset.model_path,"recon_womask.ply"),mesh.to_legacy())
     print("done!")
 
 if __name__ == "__main__":
@@ -112,7 +162,7 @@ if __name__ == "__main__":
     parser.add_argument("--checkpoint_iterations", nargs="+", type=int, default=None)
     args = parser.parse_args(sys.argv[1:])
     with torch.no_grad():
-        extract_mesh(lp.extract(args), pp.extract(args), args.checkpoint_iterations)
+        extract_mesh_2dgs(lp.extract(args), pp.extract(args), args.checkpoint_iterations)
         
         
     
