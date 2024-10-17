@@ -89,3 +89,129 @@ def camera_to_JSON(id, camera : Camera):
         'fx' : fov2focal(camera.FovX, camera.width)
     }
     return camera_entry
+
+
+from typing import List, Optional, Tuple
+import torch
+from torch import Tensor
+
+def pick_indices_at_random(valid_mask, samples_per_frame):
+    indices = torch.nonzero(torch.ravel(valid_mask))
+    if samples_per_frame < len(indices):
+        which = torch.randperm(len(indices))[:samples_per_frame]
+        indices = indices[which]
+    return torch.ravel(indices)
+
+def get_camera_coords(img_size: tuple, pixel_offset: float = 0.5) -> Tensor:
+    """Generates camera pixel coordinates [W,H]
+
+    Returns:
+        stacked coords [H*W,2] where [:,0] corresponds to W and [:,1] corresponds to H
+    """
+
+    # img size is (w,h)
+    image_coords = torch.meshgrid(
+        torch.arange(img_size[0]),
+        torch.arange(img_size[1]),
+        indexing="xy",  # W = u by H = v
+    )
+    image_coords = (
+        torch.stack(image_coords, dim=-1) + pixel_offset
+    )  # stored as (x, y) coordinates
+    image_coords = image_coords.view(-1, 2)
+    image_coords = image_coords.float()
+
+    return image_coords
+
+
+def get_means3d_backproj(
+    depths: Tensor,
+    fx: float,
+    fy: float,
+    cx: int,
+    cy: int,
+    img_size: tuple,
+    c2w: Tensor,
+    device: torch.device,
+    mask: Optional[Tensor] = None,
+) -> Tuple[Tensor, List]:
+    """Backprojection using camera intrinsics and extrinsics
+
+    image_coords -> (x,y,depth) -> (X, Y, depth)
+
+    Returns:
+        Tuple of (means: Tensor, image_coords: Tensor)
+    """
+
+    if depths.dim() == 3:
+        depths = depths.view(-1, 1)
+    elif depths.shape[-1] != 1:
+        depths = depths.unsqueeze(-1).contiguous()
+        depths = depths.view(-1, 1)
+    if depths.dtype != torch.float:
+        depths = depths.float()
+        c2w = c2w.float()
+    if c2w.device != device:
+        c2w = c2w.to(device)
+
+    image_coords = get_camera_coords(img_size)
+    image_coords = image_coords.to(device)  # note image_coords is (H,W)
+
+    # TODO: account for skew / radial distortion
+    means3d = torch.empty(
+        size=(img_size[0], img_size[1], 3), dtype=torch.float32, device=device
+    ).view(-1, 3)
+    means3d[:, 0] = (image_coords[:, 0] - cx) * depths[:, 0] / fx  # x
+    means3d[:, 1] = (image_coords[:, 1] - cy) * depths[:, 0] / fy  # y
+    means3d[:, 2] = depths[:, 0]  # z
+
+    if mask is not None:
+        if not torch.is_tensor(mask):
+            mask = torch.tensor(mask, device=depths.device)
+        means3d = means3d[mask]
+        image_coords = image_coords[mask]
+
+    if c2w is None:
+        c2w = torch.eye((means3d.shape[0], 4, 4), device=device)
+
+    # to world coords
+    means3d = means3d @ torch.linalg.inv(c2w[..., :3, :3]) + c2w[..., :3, 3]
+    return means3d, image_coords
+
+
+def get_colored_points_from_depth(
+    depths: Tensor,
+    rgbs: Tensor,
+    c2w: Tensor,
+    fx: float,
+    fy: float,
+    cx: int,
+    cy: int,
+    img_size: tuple,
+    mask: Optional[Tensor] = None,
+) -> Tuple[Tensor, Tensor]:
+    """Return colored pointclouds from depth and rgb frame and c2w. Optional masking.
+
+    Returns:
+        Tuple of (points, colors)
+    """
+    points, _ = get_means3d_backproj(
+        depths=depths.float(),
+        fx=fx,
+        fy=fy,
+        cx=cx,
+        cy=cy,
+        img_size=img_size,
+        c2w=c2w.float(),
+        device=depths.device,
+    )
+    points = points.squeeze(0)
+    if mask is not None:
+        if not torch.is_tensor(mask):
+            mask = torch.tensor(mask, device=depths.device)
+        colors = rgbs.view(-1, 3)[mask]
+        points = points[mask]
+    else:
+        colors = rgbs.view(-1, 3)
+        points = points
+    return (points, colors)

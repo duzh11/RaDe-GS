@@ -27,7 +27,7 @@ def load_camera(args):
     return cameraList_from_camInfos(scene_info.train_cameras, 1.0, args)
 
 
-def extract_mesh_2dgs(dataset, pipe, checkpoint_iterations=None):
+def extract_mesh_2dgs(dataset, pipe, checkpoint_iterations=None, args=None):
     '''
         code of extracting mesh from 2D-GS
     '''
@@ -56,13 +56,20 @@ def extract_mesh_2dgs(dataset, pipe, checkpoint_iterations=None):
     gaussExtractor = GaussianExtractor(gaussians, render, pipe, bg_color=bg_color, kernel_size=kernel_size)   
     gaussExtractor.gaussians.active_sh_degree = 0
     gaussExtractor.reconstruction(scene.getTrainCameras())
-
-    # TSDF fusion of bounded scenes
-    name = 'recon_womask.ply'
-    depth_trunc = 3.0
-    voxel_size = 0.002
-    sdf_trunc = 0.016
-    mesh = gaussExtractor.extract_mesh_bounded(voxel_size=voxel_size, sdf_trunc=sdf_trunc, depth_trunc=depth_trunc)
+    
+    # TSDF fusion using open3d
+    if args.mesh_type == 'TSDF':
+        # TSDF fusion of bounded scenes
+        name = 'recon_womask.ply'
+        depth_trunc = (gaussExtractor.radius * 2.0) if args.depth_trunc < 0  else args.depth_trunc
+        voxel_size = (depth_trunc / args.mesh_res) if args.voxel_size < 0 else args.voxel_size
+        sdf_trunc = 5.0 * voxel_size if args.sdf_trunc < 0 else args.sdf_trunc
+        mesh = gaussExtractor.extract_mesh_bounded(voxel_size=voxel_size, sdf_trunc=sdf_trunc, depth_trunc=depth_trunc)
+    # Poisson reconstruction
+    elif args.mesh_type == 'poisson':
+        name = 'recon_poisson.ply'
+        pcd, mesh = gaussExtractor.extract_mesh_poisson(poisson_depth=args.poisson_depth, total_points=2000000)
+        o3d.io.write_point_cloud(os.path.join(args.model_path, "DepthAndNormalMapsPoisson_pcd.ply"), pcd)
 
     o3d.io.write_triangle_mesh(os.path.join(args.model_path, name), mesh)
     print("mesh saved at {}".format(os.path.join(args.model_path, name)))
@@ -160,9 +167,18 @@ if __name__ == "__main__":
     lp = ModelParams(parser)
     pp = PipelineParams(parser)
     parser.add_argument("--checkpoint_iterations", nargs="+", type=int, default=None)
+    parser.add_argument("--mesh_type", default='TSDF', type=str, help='using TSDF or poisson reconstruction')
+    # TSDF
+    parser.add_argument("--voxel_size", default=-1.0, type=float, help='Mesh: voxel size for TSDF')
+    parser.add_argument("--depth_trunc", default=-1.0, type=float, help='Mesh: Max depth range for TSDF')
+    parser.add_argument("--sdf_trunc", default=-1.0, type=float, help='Mesh: truncation value for TSDF')
+    parser.add_argument("--mesh_res", default=1024, type=int, help='Mesh: resolution for unbounded mesh extraction')
+    # poisson reconsturction
+    parser.add_argument("--poisson_depth", default=10.0, type=float, help='Mesh: Poisson Octree max depth')
+
     args = parser.parse_args(sys.argv[1:])
     with torch.no_grad():
-        extract_mesh_2dgs(lp.extract(args), pp.extract(args), args.checkpoint_iterations)
+        extract_mesh_2dgs(lp.extract(args), pp.extract(args), args.checkpoint_iterations, args=args)
         
         
     
