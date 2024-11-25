@@ -109,7 +109,7 @@ def marching_tetrahedra_with_binary_search(model_path, name, iteration, views, g
     mesh.update_vertices(vertice_mask)
     mesh.update_faces(face_mask)
 
-    mesh.export(os.path.join(model_path,"recon.ply"))
+    mesh.export(os.path.join(model_path,"recon_tetrahedra.ply"))
 
     
 
