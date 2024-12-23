@@ -59,12 +59,15 @@ def extract_mesh_2dgs(dataset, pipe, checkpoint_iterations=None, args=None):
     
     # TSDF fusion using open3d
     if args.mesh_type == 'TSDF':
-        # TSDF fusion of bounded scenes
-        name = 'recon_womask.ply'
+        # * TSDF fusion without masks
+        if args.usingmask:
+            name = 'recon_wmask.ply'
+        else:
+            name = 'recon_womask.ply'
         depth_trunc = (gaussExtractor.radius * 2.0) if args.depth_trunc < 0  else args.depth_trunc
         voxel_size = (depth_trunc / args.mesh_res) if args.voxel_size < 0 else args.voxel_size
         sdf_trunc = 5.0 * voxel_size if args.sdf_trunc < 0 else args.sdf_trunc
-        mesh = gaussExtractor.extract_mesh_bounded(voxel_size=voxel_size, sdf_trunc=sdf_trunc, depth_trunc=depth_trunc)
+        mesh = gaussExtractor.extract_mesh_bounded(voxel_size=voxel_size, sdf_trunc=sdf_trunc, depth_trunc=depth_trunc, usingmask=args.usingmask)
     # Poisson reconstruction
     elif args.mesh_type == 'poisson':
         name = 'recon_poisson.ply'
@@ -173,6 +176,7 @@ if __name__ == "__main__":
     parser.add_argument("--depth_trunc", default=-1.0, type=float, help='Mesh: Max depth range for TSDF')
     parser.add_argument("--sdf_trunc", default=-1.0, type=float, help='Mesh: truncation value for TSDF')
     parser.add_argument("--mesh_res", default=1024, type=int, help='Mesh: resolution for unbounded mesh extraction')
+    parser.add_argument("--usingmask", action="store_true", help='Mesh: using mask for TSDF fusion')
     # poisson reconsturction
     parser.add_argument("--poisson_depth", default=10.0, type=float, help='Mesh: Poisson Octree max depth')
 

@@ -133,7 +133,7 @@ class GaussianExtractor(object):
         print(f"Use at least {2.0 * self.radius:.2f} for depth_trunc")
 
     @torch.no_grad()
-    def extract_mesh_bounded(self, voxel_size=0.004, sdf_trunc=0.02, depth_trunc=3, mask_backgrond=True):
+    def extract_mesh_bounded(self, voxel_size=0.004, sdf_trunc=0.02, depth_trunc=3, mask_backgrond=True, usingmask=False):
         """
         Perform TSDF fusion given a fixed depth range, used in the paper.
         
@@ -160,10 +160,9 @@ class GaussianExtractor(object):
             rgb = self.rgbmaps[i]
             depth = self.depthmaps[i]
 
-            # todo: TSDF fusion without masks
-            # if we have mask provided, use it
-            # if mask_backgrond and (self.viewpoint_stack[i].gt_alpha_mask is not None):
-            #     depth[(self.viewpoint_stack[i].gt_alpha_mask < 0.5)] = 0
+            # * if require using mask and we have mask provided, use it
+            if usingmask and mask_backgrond and (self.viewpoint_stack[i].gt_alpha_mask is not None):
+                depth[(self.viewpoint_stack[i].gt_alpha_mask < 0.5)] = 0
 
             depth[self.alphamaps[i] < alpha_thres] = 0
 
