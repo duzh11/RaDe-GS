@@ -12,6 +12,7 @@
 import torch
 from scene import Scene
 import os
+import numpy as np
 from tqdm import tqdm
 from os import makedirs
 from gaussian_renderer import render
@@ -54,11 +55,14 @@ def render_set(model_path, name, iteration, views, gaussians, pipeline, backgrou
             if 'mask' in output_jdx:
                 torchvision.utils.save_image(render_output, os.path.join(outputs_path[jdx], '{0:05d}'.format(idx) + ".png"))
             elif 'depth' in output_jdx:
+                np.savez(os.path.join(outputs_path[jdx], '{0:05d}'.format(idx) + ".npz"), np.array(render_output[0,...].cpu()))
+                
                 render_output_map = VISUils.apply_depth_colormap(render_output[0,...,None], render_dict['mask'][0,...,None], near_plane=0.0, far_plane=5.0).detach()
                 torchvision.utils.save_image(render_output_map.permute(2,0,1), os.path.join(outputs_path[jdx], '{0:05d}'.format(idx) + ".png"))
             elif 'normal' in output_jdx:
                 # transform normal from view space to world space
                 render_output = (render_output.permute(1,2,0) @ (view.world_view_transform[:3,:3].T)).permute(2,0,1)
+                np.savez(os.path.join(outputs_path[jdx], '{0:05d}'.format(idx) + ".npz"), np.array(render_output.permute(1,2,0).cpu()))
 
                 render_output_map = ((render_output+1)/2).clip(0, 1)
                 torchvision.utils.save_image(render_output_map, os.path.join(outputs_path[jdx], '{0:05d}'.format(idx) + ".png"))
