@@ -18,4 +18,3 @@ snapshot_bw.dump
 train_test_depth.py
 
 train*.sh
-run*.py
