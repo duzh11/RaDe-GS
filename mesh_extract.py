@@ -77,7 +77,7 @@ def extract_mesh_2dgs(dataset, pipe, checkpoint_iterations=None, args=None):
     o3d.io.write_triangle_mesh(os.path.join(args.model_path, name), mesh)
     print("mesh saved at {}".format(os.path.join(args.model_path, name)))
     # post-process the mesh and save, saving the largest N clusters
-    mesh_post = post_process_mesh(mesh, cluster_to_keep=1)
+    mesh_post = post_process_mesh(mesh, cluster_to_keep=args.num_cluster)
     o3d.io.write_triangle_mesh(os.path.join(args.model_path, name.replace('.ply', '_post.ply')), mesh_post)
     print("mesh post processed saved at {}".format(os.path.join(args.model_path, name.replace('.ply', '_post.ply'))))
 
@@ -177,6 +177,7 @@ if __name__ == "__main__":
     parser.add_argument("--sdf_trunc", default=-1.0, type=float, help='Mesh: truncation value for TSDF')
     parser.add_argument("--mesh_res", default=1024, type=int, help='Mesh: resolution for unbounded mesh extraction')
     parser.add_argument("--usingmask", action="store_true", help='Mesh: using mask for TSDF fusion')
+    parser.add_argument("--num_cluster", default=1, type=int)
     # poisson reconsturction
     parser.add_argument("--poisson_depth", default=10.0, type=float, help='Mesh: Poisson Octree max depth')
 
