@@ -57,7 +57,7 @@ def render_set(model_path, name, iteration, views, gaussians, pipeline, backgrou
             elif 'depth' in output_jdx:
                 np.savez(os.path.join(outputs_path[jdx], '{0:05d}'.format(idx) + ".npz"), np.array(render_output[0,...].cpu()))
                 
-                render_output_map = VISUils.apply_depth_colormap(render_output[0,...,None], render_dict['mask'][0,...,None], near_plane=0.0, far_plane=5.0).detach()
+                render_output_map = VISUils.apply_depth_colormap(render_output[0,...,None], render_dict['mask'][0,...,None], near_plane=1.5, far_plane=5.0).detach()
                 torchvision.utils.save_image(render_output_map.permute(2,0,1), os.path.join(outputs_path[jdx], '{0:05d}'.format(idx) + ".png"))
             elif 'normal' in output_jdx:
                 # transform normal from view space to world space

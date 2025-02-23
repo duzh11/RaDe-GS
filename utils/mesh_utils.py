@@ -161,8 +161,8 @@ class GaussianExtractor(object):
             depth = self.depthmaps[i]
 
             # * if require using mask and we have mask provided, use it
-            if usingmask and mask_backgrond and (self.viewpoint_stack[i].gt_alpha_mask is not None):
-                depth[(self.viewpoint_stack[i].gt_alpha_mask < 0.5)] = 0
+            if usingmask and mask_backgrond and (self.viewpoint_stack[i].gt_mask is not None):
+                depth[(self.viewpoint_stack[i].gt_mask < 0.5)] = 0
 
             depth[self.alphamaps[i] < alpha_thres] = 0
 
